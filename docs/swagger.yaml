@@ -1,0 +1,889 @@
+basePath: /
+definitions:
+  admin.UpdateUserRoleRequest:
+    properties:
+      role:
+        type: string
+      user_id:
+        type: string
+    required:
+    - role
+    - user_id
+    type: object
+  admin.UserListItem:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+    type: object
+  analytics.SummaryResponse:
+    properties:
+      browsers:
+        additionalProperties:
+          type: integer
+        type: object
+      countries:
+        additionalProperties:
+          type: integer
+        type: object
+      devices:
+        additionalProperties:
+          type: integer
+        type: object
+      total_scans:
+        type: integer
+    type: object
+  analytics.TimePoint:
+    properties:
+      count:
+        type: integer
+      timestamp:
+        type: string
+    type: object
+  audit.AuditEvent:
+    properties:
+      action:
+        type: string
+      created_at:
+        type: string
+      entity:
+        description: '"qr", "user", "project", "billing"'
+        type: string
+      entity_id:
+        description: qrID, userID, projectID, etc.
+        type: string
+      id:
+        type: string
+      metadata:
+        description: JSON string
+        type: string
+      user_id:
+        type: string
+    type: object
+  auth.AuthResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/auth.User'
+    type: object
+  auth.User:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      provider:
+        description: '"google", "local"'
+        type: string
+      provider_id:
+        description: google sub
+        type: string
+    type: object
+  billing.Plan:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      price_monthly:
+        type: integer
+      price_yearly:
+        type: integer
+      qr_limit:
+        type: integer
+      scan_limit:
+        type: integer
+    type: object
+  billing.SubscribeRequest:
+    properties:
+      plan_id:
+        type: string
+      stripe_token:
+        type: string
+    required:
+    - plan_id
+    - stripe_token
+    type: object
+  billing.Subscription:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      plan_id:
+        type: string
+      renew_at:
+        type: string
+      status:
+        description: active, canceled, expired
+        type: string
+      stripe_id:
+        type: string
+      user_id:
+        type: string
+    type: object
+  projects.CreateProjectRequest:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  projects.Project:
+    properties:
+      color:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      user_id:
+        type: string
+    type: object
+  projects.UpdateProjectRequest:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
+  qr.CreateDynamicURLRequest:
+    properties:
+      design: {}
+      name:
+        type: string
+      target_url:
+        type: string
+    required:
+    - target_url
+    type: object
+  qr.QRCode:
+    properties:
+      created_at:
+        type: string
+      design:
+        type: string
+      dynamic_data:
+        type: string
+      id:
+        type: string
+      is_dynamic:
+        type: boolean
+      name:
+        type: string
+      short_code:
+        type: string
+      static_data:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  settings.Settings:
+    properties:
+      brand_name:
+        description: White-label / branding
+        type: string
+      custom_domain:
+        type: string
+      email_notifications:
+        description: true/false
+        type: boolean
+      language:
+        description: en, hi, etc
+        type: string
+      logo_url:
+        type: string
+      theme:
+        description: light, dark
+        type: string
+      timezone:
+        description: Asia/Kolkata, etc
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  settings.UpdateSettingsRequest:
+    properties:
+      brand_name:
+        type: string
+      custom_domain:
+        type: string
+      email_notifications:
+        type: boolean
+      language:
+        type: string
+      logo_url:
+        type: string
+      theme:
+        type: string
+      timezone:
+        type: string
+    type: object
+  templates.CreateTemplateRequest:
+    properties:
+      category:
+        type: string
+      design_json:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      thumbnail:
+        type: string
+    required:
+    - category
+    - design_json
+    - name
+    type: object
+  templates.Template:
+    properties:
+      category:
+        type: string
+      created_at:
+        type: string
+      design_json:
+        additionalProperties: true
+        description: frame, colors, shapes, logo position
+        type: object
+      id:
+        type: string
+      name:
+        type: string
+      thumbnail:
+        description: image URL
+        type: string
+      user_id:
+        description: null = global template
+        type: string
+    type: object
+  templates.UpdateTemplateRequest:
+    properties:
+      category:
+        type: string
+      design_json:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      thumbnail:
+        type: string
+    type: object
+  user.User:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Scalable QR Code SaaS backend with dynamic QR, analytics, billing,
+    templates, folders, OAuth, and more.
+  title: QR SaaS API
+  version: "2.0"
+paths:
+  /api/admin/user/role:
+    put:
+      parameters:
+      - description: role update
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/admin.UpdateUserRoleRequest'
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: 'Admin: Update user role'
+      tags:
+      - Admin
+  /api/admin/users:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/admin.UserListItem'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 'Admin: List all users'
+      tags:
+      - Admin
+  /api/analytics/{qrID}/summary:
+    get:
+      description: Returns scan count, countries, devices, browsers
+      parameters:
+      - description: QR Code ID
+        in: path
+        name: qrID
+        required: true
+        type: string
+      - description: From Date YYYY-MM-DD
+        in: query
+        name: from
+        type: string
+      - description: To Date YYYY-MM-DD
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/analytics.SummaryResponse'
+      security:
+      - BearerAuth: []
+      summary: Get summary analytics for a QR code
+      tags:
+      - Analytics
+  /api/analytics/{qrID}/timeseries:
+    get:
+      description: Returns daily/hourly scan counts for a QR code
+      parameters:
+      - description: QR Code ID
+        in: path
+        name: qrID
+        required: true
+        type: string
+      - description: From Date
+        in: query
+        name: from
+        type: string
+      - description: To Date
+        in: query
+        name: to
+        type: string
+      - default: day
+        description: day|hour
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/analytics.TimePoint'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get time-series analytics
+      tags:
+      - Analytics
+  /api/audit/my:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/audit.AuditEvent'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get audit events for logged-in user
+      tags:
+      - Audit
+  /api/auth/google/callback:
+    get:
+      description: Handles OAuth callback and returns JWT
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Google OAuth Callback
+      tags:
+      - Auth
+  /api/auth/google/login:
+    get:
+      description: Redirects user to Google OAuth login page
+      responses:
+        "302":
+          description: redirect
+          schema:
+            type: string
+      summary: Google OAuth Login
+      tags:
+      - Auth
+  /api/billing/plans:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/billing.Plan'
+            type: array
+      summary: List billing plans
+      tags:
+      - Billing
+  /api/billing/subscribe:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: subscription
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/billing.SubscribeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Subscribe to a plan
+      tags:
+      - Billing
+  /api/billing/subscription:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/billing.Subscription'
+      security:
+      - BearerAuth: []
+      summary: Get active subscription
+      tags:
+      - Billing
+  /api/projects/:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/projects.Project'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List projects for logged-in user
+      tags:
+      - Projects
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/projects.CreateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/projects.Project'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create project (folder / campaign)
+      tags:
+      - Projects
+  /api/projects/{id}:
+    delete:
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete project
+      tags:
+      - Projects
+    get:
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/projects.Project'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get single project
+      tags:
+      - Projects
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/projects.UpdateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/projects.Project'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update project
+      tags:
+      - Projects
+  /api/qr/{id}/image:
+    get:
+      description: Returns QR Code Image for given ID
+      parameters:
+      - description: QR Code ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: scene (plain, logo, frame)
+        in: query
+        name: scene
+        type: string
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get QR Image
+      tags:
+      - QR
+  /api/qr/dynamic/url:
+    post:
+      consumes:
+      - application/json
+      description: Creates a QR code with redirect tracking
+      parameters:
+      - description: QR Data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/qr.CreateDynamicURLRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/qr.QRCode'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Dynamic QR Code
+      tags:
+      - QR
+  /api/settings/:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/settings.Settings'
+      security:
+      - BearerAuth: []
+      summary: Get settings for logged-in user
+      tags:
+      - Settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Settings payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/settings.UpdateSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/settings.Settings'
+      security:
+      - BearerAuth: []
+      summary: Update settings for logged-in user
+      tags:
+      - Settings
+  /api/templates/:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: template
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/templates.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/templates.Template'
+      security:
+      - BearerAuth: []
+      summary: Create a template
+      tags:
+      - Templates
+  /api/templates/{id}:
+    delete:
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete template
+      tags:
+      - Templates
+    get:
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/templates.Template'
+      security:
+      - BearerAuth: []
+      summary: Get template
+      tags:
+      - Templates
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: update
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/templates.UpdateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/templates.Template'
+      security:
+      - BearerAuth: []
+      summary: Update template
+      tags:
+      - Templates
+  /api/templates/global:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/templates.Template'
+            type: array
+      summary: List global templates
+      tags:
+      - Templates
+  /api/templates/mine:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/templates.Template'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List user templates
+      tags:
+      - Templates
+  /api/user/me:
+    get:
+      description: Returns user profile for current JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get logged-in user
+      tags:
+      - User
+  /r/{code}:
+    get:
+      description: Redirect user to target URL and log scan analytics
+      parameters:
+      - description: QR Code Short ID
+        in: path
+        name: code
+        required: true
+        type: string
+      responses:
+        "302":
+          description: redirect
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Redirect QR Scan
+      tags:
+      - Redirect
+swagger: "2.0"

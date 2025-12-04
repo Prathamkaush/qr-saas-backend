@@ -1,0 +1,44 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+*.wasm
+*.o
+*.cgo1.go
+*.cgo2.c
+*.syso
+
+# Test binary, generated with `go test -c`
+*.test
+
+# Output of the go build command
+# For example, go build -o bin/myprogram
+bin/
+
+# Dependency directories
+# Go module cache (if not using vendoring)
+.cache/
+vendor/
+
+# Log files
+*.log
+
+# IDE-specific files
+.idea/
+.vscode/
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+
+# macOS specific
+.DS_Store
+
+# Build cache
+.go-build/
+
+# GoLand specific files
+.idea/
+*.iml

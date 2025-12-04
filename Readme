@@ -1,0 +1,236 @@
+qr-saas/
+│
+├── cmd/
+│   ├── api/               # main backend
+│   ├── worker/            # background jobs
+│   └── cron/              # daily/monthly CRON tasks
+│
+├── internal/
+│   ├── http/
+│   ├── middleware/
+│   ├── config/
+│   ├── db/
+│   │   ├── clickhouse.go
+│   │   ├── redis.go
+│   │   └── postgres.go     # NEW (for billing + users)
+│   │
+│   ├── auth/
+│   ├── user/
+│   ├── qr/
+│   ├── redirect/
+│   ├── analytics/
+│   │
+│   ├── qrtypes/            # NEW — advanced QR types (WiFi, vCard, Event)
+│   │   ├── models.go
+│   │   ├── http_handlers.go
+│   │   ├── service.go
+│   │   └── repository.go
+│   │
+│   ├── templates/          # NEW — QR design system, frames library
+│   │   ├── models.go
+│   │   ├── repository.go
+│   │   ├── images/         # template images
+│   │   └── service.go
+│   │
+│   ├── projects/           # NEW — folder/category management
+│   │   ├── http_handlers.go
+│   │   ├── service.go
+│   │   ├── repository.go
+│   │   └── models.go
+│   │
+│   ├── billing/            # NEW — Stripe subscription & credits
+│   │   ├── http_handlers.go
+│   │   ├── service.go
+│   │   ├── repository.go
+│   │   └── models.go
+│   │
+│   ├── admin/              # NEW — admin dashboard APIs
+│   │   ├── http_handlers.go
+│   │   ├── repository.go
+│   │   ├── service.go
+│   │   └── models.go
+│   │
+│   ├── notifications/      # NEW — email, webhooks
+│   │   ├── email.go
+│   │   ├── sms.go          # optional
+│   │   ├── webhook.go
+│   │   └── templates/
+│   │
+│   ├── audit/              # NEW — activity logs
+│   │   ├── models.go
+│   │   ├── repository.go
+│   │   └── service.go
+│   │
+│   ├── settings/           # NEW — user preferences, white-label, themes
+│   │   ├── models.go
+│   │   ├── service.go
+│   │   ├── http_handlers.go
+│   │   └── repository.go
+│   │
+│   └── shared/
+│
+├── uploads/                # uploaded logos, images, QR exports
+├── docs/                   # swagger
+├── scripts/                # DB migrations, CLI tools
+├── worker/                 # background tasks
+├── migrations/             # database migrations
+└── .env
+# QR SaaS Backend
+
+clickhouse database :
+
+CREATE TABLE qr_codes
+(
+  id            UUID,
+  user_id       UUID,
+  name          String,
+  type          String,        -- "url", "vcard", etc.
+  is_dynamic    UInt8,
+  short_code    String,        -- for dynamic: "abc123"
+  status        String,        -- "active" | "paused" | "deleted"
+  static_data   String,        -- JSON
+  dynamic_data  String,        -- JSON (target URL, landing config, etc.)
+  design        String,        -- JSON (colors, logo, etc.)
+  created_at    DateTime,
+  updated_at    DateTime
+)
+ENGINE = ReplacingMergeTree(updated_at)
+ORDER BY (user_id, id);
+
+
+CREATE TABLE qr_scan_events
+(
+  event_id      UUID,
+  qr_id         UUID,
+  user_id       UUID,
+  scanned_at    DateTime,
+  ip            String,
+  country       String,
+  city          String,
+  user_agent    String,
+  device_type   String,
+  os            String,
+  browser       String,
+  referer       String
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(scanned_at)
+ORDER BY (qr_id, scanned_at);
+
+pg tables:
+
+CREATE TABLE users (
+    id              UUID PRIMARY KEY,
+    email           TEXT UNIQUE NOT NULL,
+    name            TEXT,
+    avatar_url      TEXT,
+    provider        TEXT NOT NULL,        -- google/local
+    provider_id     TEXT,
+    role            TEXT DEFAULT 'user',  -- user, admin
+    created_at      TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE projects (
+    id              UUID PRIMARY KEY,
+    user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
+    name            TEXT NOT NULL,
+    color           TEXT,
+    created_at      TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE qr_codes (
+    id              UUID PRIMARY KEY,
+    user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+    project_id      UUID REFERENCES projects(id),
+    
+    name            TEXT,
+    qr_type         TEXT NOT NULL,  -- dynamic, vcard, wifi, event, etc.
+    
+    short_code      TEXT UNIQUE NOT NULL,  -- used for /r/xxxxx
+    
+    target_url      TEXT,  -- for dynamic QR only
+    design_json     JSONB, -- frame, color, logo, template, etc.
+    is_active       BOOLEAN DEFAULT TRUE,
+    
+    created_at      TIMESTAMP DEFAULT now(),
+    updated_at      TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE qr_type_details (
+    qr_id           UUID PRIMARY KEY REFERENCES qr_codes(id) ON DELETE CASCADE,
+    type_data       JSONB NOT NULL  -- wifi/vcard/event specific fields
+);
+
+CREATE TABLE billing_subscriptions (
+    id              UUID PRIMARY KEY,
+    user_id         UUID REFERENCES users(id),
+    stripe_id       TEXT UNIQUE,
+    plan_id         TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    renew_at        TIMESTAMP,
+    created_at      TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE billing_usage (
+    id              SERIAL PRIMARY KEY,
+    user_id         UUID REFERENCES users(id),
+    date            DATE NOT NULL,
+    scans_used      INT DEFAULT 0,
+    qr_created      INT DEFAULT 0,
+    UNIQUE(user_id, date)
+);
+
+
+
+CREATE TABLE templates (
+    id              UUID PRIMARY KEY,
+    name            TEXT NOT NULL,
+    category        TEXT,
+    image_path      TEXT,
+    metadata        JSONB,
+    created_at      TIMESTAMP DEFAULT now()
+);
+
+CREATE TABLE template_data (
+    id UUID PRIMARY KEY,
+    user_id UUID,
+    template_id UUID,
+    data JSONB,             -- user-input values
+    url_id TEXT UNIQUE,     -- short code for frontend-friendly URLs
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+
+and other clickhouse
+
+CREATE TABLE scan_logs (
+    id            UUID,
+    qr_id         UUID,
+    user_id       UUID,
+
+    scanned_at    DateTime DEFAULT now(),
+
+    ip            String,
+    country       LowCardinality(String),
+    city          String,
+    device        LowCardinality(String),
+    browser       LowCardinality(String),
+    os            LowCardinality(String),
+
+    referrer      String,
+    user_agent    String
+)
+ENGINE = MergeTree()
+ORDER BY (qr_id, scanned_at);
+
+CREATE TABLE daily_aggregates (
+    qr_id         UUID,
+    date          Date,
+    scans         UInt32,
+    devices       Map(String, UInt32),
+    browsers      Map(String, UInt32),
+    countries     Map(String, UInt32)
+)
+ENGINE = AggregatingMergeTree()
+ORDER BY (qr_id, date);
+
