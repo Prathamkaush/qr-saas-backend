@@ -34,6 +34,10 @@ import (
 func main() {
 	cfg := config.Load()
 
+	fmt.Println("FRONTEND_URL READ:", os.Getenv("FRONTEND_URL")) // Log the raw ENV var
+    fmt.Println("FRONTEND_URL USED:", cfg.FrontendURL) // Log the value passed to the service
+
+	
 	// --------------------------
 	// DATABASE CONNECTIONS
 	// --------------------------
