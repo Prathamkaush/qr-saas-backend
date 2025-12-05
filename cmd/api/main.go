@@ -65,7 +65,7 @@ func main() {
 
 	// QR
 	qrRepo := qr.NewRepository(pgDB)
-	qrSvc := qr.NewService(qrRepo)
+	qrSvc := qr.NewService(qrRepo, cfg.BaseURL)
 
 	// Analytics
 	analyticsRepo := analytics.NewRepository(pgDB)
