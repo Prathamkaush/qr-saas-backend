@@ -26,6 +26,9 @@ type Config struct {
 	GoogleRedirectURL  string
 
 	PGURL string
+	
+	// 🔥 FIX 1: Add Frontend URL for dynamic routing and CORS
+	FrontendURL string 
 }
 
 func Load() Config {
@@ -37,9 +40,12 @@ func Load() Config {
 	_ = godotenv.Load(envPath)
 
 	fmt.Println("Loaded .env from:", envPath)
+    
+    // 🔥 FIX 2: Prioritize standard cloud 'PORT' environment variable
+    port := getEnv("PORT", getEnv("HTTP_PORT", "8080")) 
 
 	cfg := Config{
-		HTTPPort: getEnv("HTTP_PORT", "8080"),
+		HTTPPort: port, // Use the priority port
 
 		ClickHouseDSN:      getEnv("CLICKHOUSE_DSN", ""),
 		ClickHouseUser:     getEnv("CLICKHOUSE_USER", "default"),
@@ -54,6 +60,9 @@ func Load() Config {
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
 
 		PGURL: getEnv("PG_URL", ""),
+		
+		// 🔥 FIX 3: Read Frontend URL
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
 	}
 
 	fmt.Println("CLICKHOUSE_HOST LOADED =>", cfg.ClickHouseDSN)
