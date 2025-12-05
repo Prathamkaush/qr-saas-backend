@@ -24,10 +24,12 @@ type Service interface {
 
 type service struct {
 	repo Repository
+	baseURL string // 🔥 ADDED: Field to hold the global deployment URL
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+// 🔥 FIX 1: NewService now accepts the baseURL from main.go
+func NewService(repo Repository, baseURL string) Service {
+	return &service{repo: repo, baseURL: baseURL}
 }
 
 // GenerateShortCode uses crypto/rand for secure, non-colliding strings
@@ -49,7 +51,6 @@ func (s *service) CreateDynamicURL(ctx context.Context, userID, name, targetURL 
 		return nil, errors.New("target_url required")
 	}
 
-	// basic safety: give default name if empty
 	if name == "" {
 		name = "My QR Code"
 	}
@@ -60,45 +61,36 @@ func (s *service) CreateDynamicURL(ctx context.Context, userID, name, targetURL 
 	var qr *QRCode
 	var err error
 
-	// ---------------------------------------------------------
-	// 🔥 RETRY LOOP: Try 3 times to generate unique code
-	// ---------------------------------------------------------
+	// RETRY LOOP:
 	for i := 0; i < 3; i++ {
-		// 1. Generate Secure Code
 		shortCode, errGen := GenerateShortCode(6)
 		if errGen != nil {
 			return nil, errGen
 		}
 
 		qr = &QRCode{
-			ID:         uuid.NewString(),
-			UserID:     userID,
-			ProjectID:  nil,
-			Name:       name,
-			QRType:     "dynamic",
-			ShortCode:  shortCode, // Uses the generated code
-			TargetURL:  targetURL,
-			DesignJSON: string(designJSON),
-			IsActive:   true,
-			CreatedAt:  now,
-			UpdatedAt:  now,
+			ID:          uuid.NewString(),
+			UserID:      userID,
+			ProjectID:   nil,
+			Name:        name,
+			QRType:      "dynamic",
+			ShortCode:   shortCode,
+			TargetURL:   targetURL,
+			DesignJSON:  string(designJSON),
+			IsActive:    true,
+			CreatedAt:   now,
+			UpdatedAt:   now,
 		}
 
-		// 2. Try to insert into Database
 		err = s.repo.Create(ctx, qr)
 
-		// If success (err == nil), break the loop!
 		if err == nil {
 			break
 		}
 
-		// If error is NOT a duplicate key, fail immediately
-		// (Postgres error 23505 is unique_violation)
 		if !strings.Contains(err.Error(), "duplicate key") && !strings.Contains(err.Error(), "23505") {
 			return nil, err
 		}
-
-		// If it WAS a duplicate, the loop continues and tries a new code...
 		fmt.Println("⚠️ Collision detected, retrying short code generation...")
 	}
 
@@ -115,25 +107,18 @@ func (s *service) GenerateQRImage(ctx context.Context, qrID, userID, scene strin
 		return nil, err
 	}
 
-	// ---------------------------------------------------------
-	// 🔥 CRITICAL FIX: Encode the Redirect URL, NOT the Target URL
-	// ---------------------------------------------------------
-	// If you encode TargetURL directly, the phone goes straight to the website.
-	// The backend NEVER sees the scan, so NO analytics are logged.
-
-	// Check if ShortCode exists
 	if qrData.ShortCode == "" {
 		return nil, errors.New("qr code has no short code")
 	}
 
-	// 1. Construct the Tracking URL
-	// This hits your Go server (/r/:code) -> Logs to ClickHouse -> Redirects to Target
-	// IMPORTANT: For local testing with a PHONE, 'localhost' won't work.
-	// You need your computer's IP (e.g., http://192.168.1.5:8080/r/...) or ngrok.
-	url := fmt.Sprintf("http://localhost:8080/r/%s", qrData.ShortCode)
+	// ---------------------------------------------------------
+	// 🔥 FIX 2: Use the dynamic BASE_URL for tracking
+	// ---------------------------------------------------------
+	// This ensures your QR code works globally and logs analytics on Render.
+	trackingURL := fmt.Sprintf("%s/r/%s", s.baseURL, qrData.ShortCode)
 
-	// 2. Generate QR using the Tracking URL
-	qrBytes, err := render.RenderQRWithLogo(url, render.RenderOptions{
+	// generate base QR
+	qrBytes, err := render.RenderQRWithLogo(trackingURL, render.RenderOptions{
 		Size: 600,
 	})
 	if err != nil {
@@ -152,7 +137,6 @@ func (s *service) GenerateQRImage(ctx context.Context, qrID, userID, scene strin
 		return composite, err
 	}
 
-	// default: return plain QR
 	return qrBytes, nil
 }
 
