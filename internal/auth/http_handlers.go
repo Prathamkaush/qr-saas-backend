@@ -42,27 +42,39 @@ func (h *Handler) GoogleLogin(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Router /api/auth/google/callback [get]
 func (h *Handler) GoogleCallback(c *gin.Context) {
-	code := c.Query("code")
-	if code == "" {
-		c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/login?error=no_code")
-		return
-	}
-
-	token, user, err := h.svc.GoogleCallback(c.Request.Context(), code)
-	if err != nil {
-		fmt.Println("GoogleCallback ERROR:", err) // 🔥 debug log
-		c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/login?error=oauth_failed")
-		return
-	}
-
-	redirectURL := fmt.Sprintf(
-		"http://localhost:3000/auth/callback?token=%s&name=%s",
-		token,
-		user.Name,
-	)
-
-	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
+code := c.Query("code")
+if code == "" {
+// 1. HARDCODE FIX: OAuth Error Redirect
+// Send user to the deployed frontend's login page
+c.Redirect(http.StatusTemporaryRedirect, "https://beam-three-mu.vercel.app/login?error=no_code")
+return
 }
+
+token, user, err := h.svc.GoogleCallback(c.Request.Context(), code)
+if err != nil {
+fmt.Println("GoogleCallback ERROR:", err)
+// 1. HARDCODE FIX: OAuth Error Redirect
+c.Redirect(http.StatusTemporaryRedirect, "https://beam-three-mu.vercel.app/login?error=oauth_failed")
+return
+}
+
+// 2. HARDCODE FIX: Successful Redirect
+// CRITICAL: MUST use HTTPS on the deployed frontend domain
+frontendURL := "https://beam-three-mu.vercel.app"
+
+// We already added the dynamic logic earlier, but for the hardcoded fix:
+redirectURL := fmt.Sprintf(
+"%s/auth/callback?token=%s&name=%s&email=%s",
+frontendURL,
+token,
+user.Name,
+user.Email,
+)
+
+c.Redirect(http.StatusTemporaryRedirect, redirectURL)
+}
+
+
 
 // --- Handlers ---
 
