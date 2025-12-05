@@ -28,7 +28,10 @@ type Config struct {
 	PGURL string
 	
 	// 🔥 FIX 1: Add Frontend URL for dynamic routing and CORS
-	FrontendURL string 
+	FrontendURL string 
+    
+    // 🔥 FIX 2: Add BaseURL (The public host of this API)
+	BaseURL string
 }
 
 func Load() Config {
@@ -40,9 +43,9 @@ func Load() Config {
 	_ = godotenv.Load(envPath)
 
 	fmt.Println("Loaded .env from:", envPath)
-    
-    // 🔥 FIX 2: Prioritize standard cloud 'PORT' environment variable
-    port := getEnv("PORT", getEnv("HTTP_PORT", "8080")) 
+    
+    // Prioritize standard cloud 'PORT' environment variable
+    port := getEnv("PORT", getEnv("HTTP_PORT", "8080")) 
 
 	cfg := Config{
 		HTTPPort: port, // Use the priority port
@@ -61,8 +64,12 @@ func Load() Config {
 
 		PGURL: getEnv("PG_URL", ""),
 		
-		// 🔥 FIX 3: Read Frontend URL
+		// Read Frontend URL (used by auth redirect)
 		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:3000"),
+        
+        // 🔥 FIX 3: Read Base URL (used by QR image generation for tracking)
+        // This MUST be set to https://qr-saas-backend-wew1.onrender.com
+		BaseURL: getEnv("BASE_URL", "http://localhost:8080"), 
 	}
 
 	fmt.Println("CLICKHOUSE_HOST LOADED =>", cfg.ClickHouseDSN)
