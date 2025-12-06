@@ -21,6 +21,8 @@ type Service interface {
 	CreateDynamicURL(ctx context.Context, userID, name, targetURL string, qrType string, design any) (*QRCode, error)
 	GenerateQRImage(ctx context.Context, qrID, userID, scene string) ([]byte, error)
 	ListByUser(ctx context.Context, userID string) ([]QRCode, error)
+	GetQR(ctx context.Context, id, userID string) (*QRCode, error)
+	UpdateQR(ctx context.Context, id, userID, name, targetURL string, design any) (*QRCode, error)
 	Delete(ctx context.Context, id, userID string) error
 }
 
@@ -203,4 +205,27 @@ func (s *service) ListByUser(ctx context.Context, userID string) ([]QRCode, erro
 
 func (s *service) Delete(ctx context.Context, id, userID string) error {
 	return s.repo.Delete(ctx, id, userID)
+}
+// Implementation
+func (s *service) GetQR(ctx context.Context, id, userID string) (*QRCode, error) {
+    return s.repo.GetByID(ctx, id, userID)
+}
+
+func (s *service) UpdateQR(ctx context.Context, id, userID, name, targetURL string, design any) (*QRCode, error) {
+    // 1. Fetch existing to ensure ownership
+    qr, err := s.repo.GetByID(ctx, id, userID)
+    if err != nil { return nil, err }
+    
+    // 2. Update fields
+    qr.Name = name
+    qr.TargetURL = targetURL // Stores raw content for static, or URL for dynamic
+    
+    designJSON, _ := json.Marshal(design)
+    qr.DesignJSON = string(designJSON)
+    
+    // 3. Save
+    if err := s.repo.Update(ctx, qr); err != nil {
+        return nil, err
+    }
+    return qr, nil
 }
