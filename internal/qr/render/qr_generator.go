@@ -8,8 +8,8 @@ import (
 	"image/png"
 	"os"
 
-	"github.com/disintegration/imaging"
-	"github.com/skip2/go-qrcode"
+	"[github.com/disintegration/imaging](https://github.com/disintegration/imaging)"
+	"[github.com/skip2/go-qrcode](https://github.com/skip2/go-qrcode)"
 )
 
 type RenderOptions struct {
@@ -94,18 +94,4 @@ func parseHexColor(s string) color.RGBA {
 	}
 	
 	return c
-} ```
-
-### 2. Update `internal/qr/service.go` (Uncommented)
-
-Now update the `GenerateQRImage` function in your service file to actually pass the colors.
-
-```go
-// ... inside internal/qr/service.go ...
-
-// Generate QR using the derived content
-qrBytes, err := render.RenderQRWithLogo(contentToEncode, render.RenderOptions{
-    Size:            600,
-    Color:           fgColor, // 🔥 Now uncommented and working
-    BackgroundColor: bgColor, // 🔥 Now uncommented and working
-})
+}
