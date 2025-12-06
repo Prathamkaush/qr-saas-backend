@@ -84,9 +84,7 @@ func parseHexColor(s string) color.RGBA {
 		c.R = r
 		c.G = g
 		c.B = b
-	} 
-    // Handle #RGB (shorthand)
-    else if len(s) == 4 {
+	} else if len(s) == 4 {
         var r1, g1, b1 uint8
         fmt.Sscanf(s, "#%1x%1x%1x", &r1, &g1, &b1)
         c.R = r1 * 17
