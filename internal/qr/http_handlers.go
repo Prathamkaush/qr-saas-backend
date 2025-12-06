@@ -22,11 +22,17 @@ func RegisterRoutes(r *gin.RouterGroup, svc Service) {
 }
 
 type CreateDynamicURLRequest struct {
+	Name string `json:"name"`
+	// Removed "url" validation so it accepts WiFi/vCard strings
+	TargetURL string `json:"target_url" binding:"required"`
+	// 🔥 ADDED: Field to capture the type (wifi, vcard, etc.)
+	QRType string      `json:"qr_type" binding:"required"`
+	Design interface{} `json:"design"`
+}
+
+type UpdateQRRequest struct {
 	Name      string      `json:"name"`
-    // Removed "url" validation so it accepts WiFi/vCard strings
-	TargetURL string      `json:"target_url" binding:"required"` 
-    // 🔥 ADDED: Field to capture the type (wifi, vcard, etc.)
-	QRType    string      `json:"qr_type" binding:"required"`    
+	TargetURL string      `json:"target_url"`
 	Design    interface{} `json:"design"`
 }
 
@@ -49,7 +55,7 @@ func (h *Handler) CreateDynamicURL(c *gin.Context) {
 
 	userID := c.GetString("user_id") // set by JWT middleware
 
-    // 🔥 FIX: Pass req.QRType as the 5th argument
+	// 🔥 FIX: Pass req.QRType as the 5th argument
 	qr, err := h.svc.CreateDynamicURL(
 		c.Request.Context(),
 		userID,
@@ -115,31 +121,34 @@ func (h *Handler) DeleteQR(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
+
 // Handlers
 func (h *Handler) GetQR(c *gin.Context) {
-    id := c.Param("id")
-    userID := c.GetString("user_id")
-    qr, err := h.svc.GetQR(c.Request.Context(), id, userID)
-    if err != nil {
-        c.JSON(404, gin.H{"error": "QR not found"})
-        return
-    }
-    c.JSON(200, qr)
+	id := c.Param("id")
+	userID := c.GetString("user_id")
+	qr, err := h.svc.GetQR(c.Request.Context(), id, userID)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "QR not found"})
+		return
+	}
+	c.JSON(200, qr)
 }
 
 func (h *Handler) UpdateQR(c *gin.Context) {
-    id := c.Param("id")
-    userID := c.GetString("user_id")
-    var req CreateDynamicURLRequest // Reuse create struct
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(400, gin.H{"error": err.Error()})
-        return
-    }
-    
-    qr, err := h.svc.UpdateQR(c.Request.Context(), id, userID, req.Name, req.TargetURL, req.Design)
-    if err != nil {
-        c.JSON(500, gin.H{"error": err.Error()})
-        return
-    }
-    c.JSON(200, qr)
+	id := c.Param("id")
+	userID := c.GetString("user_id")
+
+	var req UpdateQRRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+
+	qr, err := h.svc.UpdateQR(c.Request.Context(), id, userID, req.Name, req.TargetURL, req.Design)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, qr)
 }

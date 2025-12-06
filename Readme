@@ -1,236 +1,142 @@
 qr-saas/
 │
 ├── cmd/
-│   ├── api/               # main backend
-│   ├── worker/            # background jobs
-│   └── cron/              # daily/monthly CRON tasks
+│   ├── api/
+│   │   └── main.go                # Entry point (Initializes Postgres, Redis, Router)
+│   └── worker/                    # Background jobs (Email, Subscription checks)
+│       └── main.go
 │
 ├── internal/
-│   ├── http/
-│   ├── middleware/
 │   ├── config/
+│   │   └── config.go              # Loads .env (PORT, DATABASE_URL, FRONTEND_URL)
+│   │
 │   ├── db/
-│   │   ├── clickhouse.go
-│   │   ├── redis.go
-│   │   └── postgres.go     # NEW (for billing + users)
+│   │   ├── postgres.go            # Connects to Neon (pgxpool)
+│   │   └── redis.go               # Connects to Redis (Rate limiting, Caching)
 │   │
-│   ├── auth/
-│   ├── user/
-│   ├── qr/
-│   ├── redirect/
-│   ├── analytics/
+│   ├── http/
+│   │   ├── router.go              # Setup Gin, CORS, Routes
+│   │   ├── middleware/
+│   │   │   ├── auth.go            # JWT Validation
+│   │   │   └── cors.go            # CORS Config
+│   │   └── response/              # Standard JSON response helpers
 │   │
-│   ├── qrtypes/            # NEW — advanced QR types (WiFi, vCard, Event)
+│   ├── auth/                      # User Authentication
 │   │   ├── models.go
+│   │   ├── repository.go          # Users Table
+│   │   ├── service.go             # Google OAuth / Login Logic
 │   │   ├── http_handlers.go
-│   │   ├── service.go
-│   │   └── repository.go
+│   │   └── google_oauth.go
 │   │
-│   ├── templates/          # NEW — QR design system, frames library
-│   │   ├── models.go
-│   │   ├── repository.go
-│   │   ├── images/         # template images
-│   │   └── service.go
-│   │
-│   ├── projects/           # NEW — folder/category management
+│   ├── qr/                        # QR Management
+│   │   ├── models.go              # QRCode Struct
+│   │   ├── repository.go          # CRUD for qr_codes table
+│   │   ├── service.go             # Create, Update, Delete Logic
 │   │   ├── http_handlers.go
+│   │   └── render/                # Image Generation (go-qrcode)
+│   │
+│   ├── analytics/                 # Scan Tracking (Moved to Postgres)
+│   │   ├── models.go              # ScanEvent, Summary
+│   │   ├── repository.go          # SQL queries for scan_events table
 │   │   ├── service.go
-│   │   ├── repository.go
-│   │   └── models.go
+│   │   └── http_handlers.go       # GET /analytics/dashboard
 │   │
-│   ├── billing/            # NEW — Stripe subscription & credits
-│   │   ├── http_handlers.go
-│   │   ├── service.go
-│   │   ├── repository.go
-│   │   └── models.go
+│   ├── redirect/                  # The "Engine" (/r/:code)
+│   │   ├── service.go             # Resolve URL -> Log Async -> Return Target
+│   │   └── http_handlers.go
 │   │
-│   ├── admin/              # NEW — admin dashboard APIs
-│   │   ├── http_handlers.go
-│   │   ├── repository.go
-│   │   ├── service.go
-│   │   └── models.go
-│   │
-│   ├── notifications/      # NEW — email, webhooks
-│   │   ├── email.go
-│   │   ├── sms.go          # optional
-│   │   ├── webhook.go
-│   │   └── templates/
-│   │
-│   ├── audit/              # NEW — activity logs
+│   ├── projects/                  # Folders
 │   │   ├── models.go
 │   │   ├── repository.go
-│   │   └── service.go
+│   │   └── http_handlers.go
 │   │
-│   ├── settings/           # NEW — user preferences, white-label, themes
+│   ├── billing/                   # Stripe Integration
 │   │   ├── models.go
-│   │   ├── service.go
-│   │   ├── http_handlers.go
-│   │   └── repository.go
+│   │   ├── repository.go          # Subscriptions table
+│   │   ├── service.go             # Stripe Webhook logic
+│   │   └── http_handlers.go
 │   │
-│   └── shared/
+│   └── settings/                  # User Profile
+│       ├── models.go
+│       └── http_handlers.go
 │
-├── uploads/                # uploaded logos, images, QR exports
-├── docs/                   # swagger
-├── scripts/                # DB migrations, CLI tools
-├── worker/                 # background tasks
-├── migrations/             # database migrations
+├── migrations/                    # SQL Scripts for Database
+│   ├── 001_init_schema.up.sql
+│   └── 002_add_analytics.up.sql
+│
+├── assets/                        # Static assets (logos, templates)
+├── go.mod
+├── go.sum
 └── .env
-# QR SaaS Backend
 
-clickhouse database :
-
-CREATE TABLE qr_codes
-(
-  id            UUID,
-  user_id       UUID,
-  name          String,
-  type          String,        -- "url", "vcard", etc.
-  is_dynamic    UInt8,
-  short_code    String,        -- for dynamic: "abc123"
-  status        String,        -- "active" | "paused" | "deleted"
-  static_data   String,        -- JSON
-  dynamic_data  String,        -- JSON (target URL, landing config, etc.)
-  design        String,        -- JSON (colors, logo, etc.)
-  created_at    DateTime,
-  updated_at    DateTime
-)
-ENGINE = ReplacingMergeTree(updated_at)
-ORDER BY (user_id, id);
-
-
-CREATE TABLE qr_scan_events
-(
-  event_id      UUID,
-  qr_id         UUID,
-  user_id       UUID,
-  scanned_at    DateTime,
-  ip            String,
-  country       String,
-  city          String,
-  user_agent    String,
-  device_type   String,
-  os            String,
-  browser       String,
-  referer       String
-)
-ENGINE = MergeTree
-PARTITION BY toYYYYMM(scanned_at)
-ORDER BY (qr_id, scanned_at);
-
-pg tables:
-
+-- 1. USERS
 CREATE TABLE users (
-    id              UUID PRIMARY KEY,
-    email           TEXT UNIQUE NOT NULL,
-    name            TEXT,
-    avatar_url      TEXT,
-    provider        TEXT NOT NULL,        -- google/local
-    provider_id     TEXT,
-    role            TEXT DEFAULT 'user',  -- user, admin
-    created_at      TIMESTAMP DEFAULT now()
+    id           UUID PRIMARY KEY,
+    email        TEXT UNIQUE NOT NULL,
+    password_hash TEXT,            -- Nullable for Google Auth users
+    name         TEXT,
+    avatar_url   TEXT,
+    provider     TEXT NOT NULL,    -- 'google' or 'local'
+    provider_id  TEXT,
+    role         TEXT DEFAULT 'user',
+    created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 2. PROJECTS (Folders)
 CREATE TABLE projects (
-    id              UUID PRIMARY KEY,
-    user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
-    name            TEXT NOT NULL,
-    color           TEXT,
-    created_at      TIMESTAMP DEFAULT now()
+    id           UUID PRIMARY KEY,
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    color        TEXT,
+    created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 3. QR CODES
 CREATE TABLE qr_codes (
-    id              UUID PRIMARY KEY,
-    user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
-    project_id      UUID REFERENCES projects(id),
+    id           UUID PRIMARY KEY,
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id   UUID REFERENCES projects(id) ON DELETE SET NULL,
     
-    name            TEXT,
-    qr_type         TEXT NOT NULL,  -- dynamic, vcard, wifi, event, etc.
+    name         TEXT,
+    qr_type      TEXT NOT NULL,    -- 'url', 'wifi', 'vcard', 'pdf'
+    short_code   TEXT UNIQUE NOT NULL,
+    target_url   TEXT,             -- Stores URL for dynamic, or Raw Content for static
+    design_json  JSONB,            -- Stores Colors, Logo, Shapes
     
-    short_code      TEXT UNIQUE NOT NULL,  -- used for /r/xxxxx
+    is_active    BOOLEAN DEFAULT TRUE,
+    created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. SCAN EVENTS (Analytics - Formerly ClickHouse)
+CREATE TABLE scan_events (
+    id           UUID PRIMARY KEY,
+    qr_id        UUID NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     
-    target_url      TEXT,  -- for dynamic QR only
-    design_json     JSONB, -- frame, color, logo, template, etc.
-    is_active       BOOLEAN DEFAULT TRUE,
+    scanned_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    created_at      TIMESTAMP DEFAULT now(),
-    updated_at      TIMESTAMP DEFAULT now()
+    -- Metadata from User Agent / IP
+    ip           TEXT,
+    country      TEXT,
+    city         TEXT,
+    device_type  TEXT, -- Mobile, Desktop, Tablet
+    os           TEXT, -- iOS, Android, Windows
+    browser      TEXT, -- Chrome, Safari
+    referer      TEXT
 );
 
-CREATE TABLE qr_type_details (
-    qr_id           UUID PRIMARY KEY REFERENCES qr_codes(id) ON DELETE CASCADE,
-    type_data       JSONB NOT NULL  -- wifi/vcard/event specific fields
+-- Indexes for fast Analytics Charts
+CREATE INDEX idx_scans_qr_date ON scan_events (qr_id, scanned_at);
+CREATE INDEX idx_scans_user_date ON scan_events (user_id, scanned_at);
+
+-- 5. BILLING
+CREATE TABLE subscriptions (
+    id                UUID PRIMARY KEY,
+    user_id           UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    stripe_customer_id TEXT,
+    stripe_sub_id     TEXT UNIQUE,
+    plan_id           TEXT,        -- 'free', 'pro', 'business'
+    status            TEXT,        -- 'active', 'past_due', 'canceled'
+    current_period_end TIMESTAMP WITH TIME ZONE
 );
-
-CREATE TABLE billing_subscriptions (
-    id              UUID PRIMARY KEY,
-    user_id         UUID REFERENCES users(id),
-    stripe_id       TEXT UNIQUE,
-    plan_id         TEXT NOT NULL,
-    status          TEXT NOT NULL,
-    renew_at        TIMESTAMP,
-    created_at      TIMESTAMP DEFAULT now()
-);
-
-CREATE TABLE billing_usage (
-    id              SERIAL PRIMARY KEY,
-    user_id         UUID REFERENCES users(id),
-    date            DATE NOT NULL,
-    scans_used      INT DEFAULT 0,
-    qr_created      INT DEFAULT 0,
-    UNIQUE(user_id, date)
-);
-
-
-
-CREATE TABLE templates (
-    id              UUID PRIMARY KEY,
-    name            TEXT NOT NULL,
-    category        TEXT,
-    image_path      TEXT,
-    metadata        JSONB,
-    created_at      TIMESTAMP DEFAULT now()
-);
-
-CREATE TABLE template_data (
-    id UUID PRIMARY KEY,
-    user_id UUID,
-    template_id UUID,
-    data JSONB,             -- user-input values
-    url_id TEXT UNIQUE,     -- short code for frontend-friendly URLs
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-
-and other clickhouse
-
-CREATE TABLE scan_logs (
-    id            UUID,
-    qr_id         UUID,
-    user_id       UUID,
-
-    scanned_at    DateTime DEFAULT now(),
-
-    ip            String,
-    country       LowCardinality(String),
-    city          String,
-    device        LowCardinality(String),
-    browser       LowCardinality(String),
-    os            LowCardinality(String),
-
-    referrer      String,
-    user_agent    String
-)
-ENGINE = MergeTree()
-ORDER BY (qr_id, scanned_at);
-
-CREATE TABLE daily_aggregates (
-    qr_id         UUID,
-    date          Date,
-    scans         UInt32,
-    devices       Map(String, UInt32),
-    browsers      Map(String, UInt32),
-    countries     Map(String, UInt32)
-)
-ENGINE = AggregatingMergeTree()
-ORDER BY (qr_id, date);
-
