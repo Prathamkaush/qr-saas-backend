@@ -64,7 +64,6 @@ func (r *repository) Create(ctx context.Context, qr *QRCode) error {
 		return fmt.Errorf("insert qr_codes failed: %w", err)
 	}
 
-	// TODO: later also write into ClickHouse qr_codes for analytics
 	return nil
 }
 
@@ -148,22 +147,22 @@ func (r *repository) GetByShortCode(ctx context.Context, code string) (*QRCode, 
 
 func (r *repository) ListByUser(ctx context.Context, userID string) ([]QRCode, error) {
 	rows, err := r.pg.Query(ctx, `
-        SELECT
-            id,
-            user_id,
-            project_id,
-            name,
-            qr_type,
-            short_code,
-            target_url,
-            design_json,
-            is_active,
-            created_at,
-            updated_at
-        FROM qr_codes
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-    `, userID)
+		SELECT
+			id,
+			user_id,
+			project_id,
+			name,
+			qr_type,
+			short_code,
+			target_url,
+			design_json,
+			is_active,
+			created_at,
+			updated_at
+		FROM qr_codes
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -192,9 +191,8 @@ func (r *repository) ListByUser(ctx context.Context, userID string) ([]QRCode, e
 	return out, nil
 }
 
+// 🔥 FIX: Delete function is now properly closed
 func (r *repository) Delete(ctx context.Context, id, userID string) error {
-	// We include userID in the WHERE clause for security.
-	// This prevents User A from deleting User B's QR code.
 	query := `DELETE FROM qr_codes WHERE id=$1 AND user_id=$2`
 
 	tag, err := r.pg.Exec(ctx, query, id, userID)
@@ -202,26 +200,25 @@ func (r *repository) Delete(ctx context.Context, id, userID string) error {
 		return err
 	}
 
-	// Check if any row was actually deleted
 	if tag.RowsAffected() == 0 {
 		return errors.New("qr code not found or access denied")
 	}
-// Implementation
-func (r *repository) Update(ctx context.Context, qr *QRCode) error {
-    query := `
-        UPDATE qr_codes 
-        SET name=$1, target_url=$2, design_json=$3, updated_at=now()
-        WHERE id=$4 AND user_id=$5
-    `
-    cmd, err := r.pg.Exec(ctx, query, qr.Name, qr.TargetURL, qr.DesignJSON, qr.ID, qr.UserID)
-    if err != nil {
-        return err
-    }
-    if cmd.RowsAffected() == 0 {
-        return errors.New("qr not found or permission denied")
-    }
-    return nil
+	return nil
 }
 
+// 🔥 FIX: Update function is now separate
+func (r *repository) Update(ctx context.Context, qr *QRCode) error {
+	query := `
+		UPDATE qr_codes 
+		SET name=$1, target_url=$2, design_json=$3, updated_at=now()
+		WHERE id=$4 AND user_id=$5
+	`
+	cmd, err := r.pg.Exec(ctx, query, qr.Name, qr.TargetURL, qr.DesignJSON, qr.ID, qr.UserID)
+	if err != nil {
+		return err
+	}
+	if cmd.RowsAffected() == 0 {
+		return errors.New("qr not found or permission denied")
+	}
 	return nil
 }
