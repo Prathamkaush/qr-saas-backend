@@ -62,7 +62,7 @@ func (s *service) CreateDynamicURL(ctx context.Context, userID, name, targetURL 
 	// If it is a URL, we treat it as dynamic (redirects via server)
 	if qrType == "url" {
 		finalQRType = "dynamic"
-	} 
+	}
 	// For "wifi", "vcard", "text", etc., we keep the type as-is so 
 	// GenerateQRImage knows to encode the raw content (TargetURL) directly.
 
