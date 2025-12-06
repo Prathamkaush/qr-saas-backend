@@ -16,6 +16,8 @@ func RegisterRoutes(r *gin.RouterGroup, svc Service) {
 	r.POST("/dynamic/url", h.CreateDynamicURL)
 	r.GET("/", h.ListMyQRCodes)
 	r.GET("/:id/image", h.GetQRImage)
+	r.GET("/:id", h.GetQR)
+	r.PUT("/:id", h.UpdateQR)
 	r.DELETE("/:id", h.DeleteQR)
 }
 
@@ -112,4 +114,32 @@ func (h *Handler) DeleteQR(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+// Handlers
+func (h *Handler) GetQR(c *gin.Context) {
+    id := c.Param("id")
+    userID := c.GetString("user_id")
+    qr, err := h.svc.GetQR(c.Request.Context(), id, userID)
+    if err != nil {
+        c.JSON(404, gin.H{"error": "QR not found"})
+        return
+    }
+    c.JSON(200, qr)
+}
+
+func (h *Handler) UpdateQR(c *gin.Context) {
+    id := c.Param("id")
+    userID := c.GetString("user_id")
+    var req CreateDynamicURLRequest // Reuse create struct
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(400, gin.H{"error": err.Error()})
+        return
+    }
+    
+    qr, err := h.svc.UpdateQR(c.Request.Context(), id, userID, req.Name, req.TargetURL, req.Design)
+    if err != nil {
+        c.JSON(500, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(200, qr)
 }
