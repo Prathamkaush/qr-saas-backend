@@ -3,10 +3,12 @@ package qr
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"time"
 
@@ -55,16 +57,12 @@ func (s *service) CreateDynamicURL(ctx context.Context, userID, name, targetURL 
 	designJSON, _ := json.Marshal(design)
 	now := time.Now().UTC()
 
-	// 1. Determine Logic based on QR Type
 	finalQRType := qrType
 	finalTargetURL := targetURL
 
-	// If it is a URL, we treat it as dynamic (redirects via server)
 	if qrType == "url" {
 		finalQRType = "dynamic"
 	}
-	// For "wifi", "vcard", "text", etc., we keep the type as-is so 
-	// GenerateQRImage knows to encode the raw content (TargetURL) directly.
 
 	var qr *QRCode
 	var err error
@@ -105,9 +103,11 @@ func (s *service) CreateDynamicURL(ctx context.Context, userID, name, targetURL 
 	return qr, nil
 }
 
+// Updated struct to capture the Logo string (Base64)
 type DesignConfig struct {
 	Color   string `json:"color"`
 	BgColor string `json:"bgColor"`
+	Logo    string `json:"logo"` // Can be a Base64 string
 }
 
 func (s *service) GenerateQRImage(ctx context.Context, qrID, userID, scene string) ([]byte, error) {
@@ -120,7 +120,6 @@ func (s *service) GenerateQRImage(ctx context.Context, qrID, userID, scene strin
 		return nil, errors.New("qr code has no short code")
 	}
 
-	// 1. Determine Content to Encode
 	var contentToEncode string
 	if qrData.QRType == "dynamic" || qrData.QRType == "url" {
 		contentToEncode = fmt.Sprintf("%s/r/%s", s.baseURL, qrData.ShortCode)
@@ -132,10 +131,13 @@ func (s *service) GenerateQRImage(ctx context.Context, qrID, userID, scene strin
 		return nil, errors.New("cannot generate QR for empty content")
 	}
 
-	// 2. Extract Colors
+	// ---------------------------------------------------------
+	// EXTRACT DESIGN (Colors & Logo)
+	// ---------------------------------------------------------
 	var design DesignConfig
 	fgColor := "#000000"
 	bgColor := "#ffffff"
+	var logoPath string
 
 	if qrData.DesignJSON != "" {
 		if err := json.Unmarshal([]byte(qrData.DesignJSON), &design); err == nil {
@@ -145,6 +147,28 @@ func (s *service) GenerateQRImage(ctx context.Context, qrID, userID, scene strin
 			if design.BgColor != "" {
 				bgColor = design.BgColor
 			}
+
+			// 🔥 HANDLE LOGO (Base64 -> Temp File)
+			if design.Logo != "" && len(design.Logo) > 20 {
+				// Remove data URI prefix if present (e.g. "data:image/png;base64,")
+				parts := strings.Split(design.Logo, ",")
+				b64Data := parts[len(parts)-1]
+
+				// Decode
+				decoded, decodeErr := base64.StdEncoding.DecodeString(b64Data)
+				if decodeErr == nil {
+					// Write to temp file
+					tmpFile, tmpErr := os.CreateTemp("", "qr-logo-*.png")
+					if tmpErr == nil {
+						// Clean up file after function exits (or shortly after)
+						defer os.Remove(tmpFile.Name())
+						
+						tmpFile.Write(decoded)
+						tmpFile.Close()
+						logoPath = tmpFile.Name()
+					}
+				}
+			}
 		}
 	}
 
@@ -153,6 +177,7 @@ func (s *service) GenerateQRImage(ctx context.Context, qrID, userID, scene strin
 		Size:            600,
 		Color:           fgColor,
 		BackgroundColor: bgColor,
+		LogoPath:        logoPath, // Pass the temp file path
 	})
 	if err != nil {
 		return nil, err
