@@ -14,6 +14,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id, userID string) (*QRCode, error)
 	GetByShortCode(ctx context.Context, shortCode string) (*QRCode, error)
 	ListByUser(ctx context.Context, userID string) ([]QRCode, error)
+	Update(ctx context.Context, qr *QRCode) error
 	Delete(ctx context.Context, id, userID string) error
 }
 
@@ -205,6 +206,22 @@ func (r *repository) Delete(ctx context.Context, id, userID string) error {
 	if tag.RowsAffected() == 0 {
 		return errors.New("qr code not found or access denied")
 	}
+// Implementation
+func (r *repository) Update(ctx context.Context, qr *QRCode) error {
+    query := `
+        UPDATE qr_codes 
+        SET name=$1, target_url=$2, design_json=$3, updated_at=now()
+        WHERE id=$4 AND user_id=$5
+    `
+    cmd, err := r.pg.Exec(ctx, query, qr.Name, qr.TargetURL, qr.DesignJSON, qr.ID, qr.UserID)
+    if err != nil {
+        return err
+    }
+    if cmd.RowsAffected() == 0 {
+        return errors.New("qr not found or permission denied")
+    }
+    return nil
+}
 
 	return nil
 }
