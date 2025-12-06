@@ -13,6 +13,16 @@ type Handler struct {
 func RegisterRoutes(r *gin.RouterGroup, svc Service) {
 	h := &Handler{svc: svc}
 
+	// ------------------------
+	// MUST COME FIRST
+	// ------------------------
+	r.GET("/:id/qr", h.ListQRs)
+	r.PUT("/:id/add/:qrID", h.AddQR)
+	r.PUT("/:id/remove/:qrID", h.RemoveQR)
+
+	// ------------------------
+	// CRUD ROUTES (simple ones last)
+	// ------------------------
 	r.POST("/", h.Create)
 	r.GET("/", h.List)
 	r.GET("/:id", h.GetOne)
@@ -20,8 +30,14 @@ func RegisterRoutes(r *gin.RouterGroup, svc Service) {
 	r.DELETE("/:id", h.Delete)
 }
 
+//
+// ------------------------
+// CREATE PROJECT
+// ------------------------
+//
+
 // Create godoc
-// @Summary Create project (folder / campaign)
+// @Summary Create project (folder)
 // @Tags Projects
 // @Security BearerAuth
 // @Accept json
@@ -48,6 +64,12 @@ func (h *Handler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, p)
 }
 
+//
+// ------------------------
+// LIST PROJECTS
+// ------------------------
+//
+
 // List godoc
 // @Summary List projects for logged-in user
 // @Tags Projects
@@ -66,6 +88,12 @@ func (h *Handler) List(c *gin.Context) {
 
 	c.JSON(http.StatusOK, projects)
 }
+
+//
+// ------------------------
+// GET ONE PROJECT
+// ------------------------
+//
 
 // GetOne godoc
 // @Summary Get single project
@@ -92,6 +120,12 @@ func (h *Handler) GetOne(c *gin.Context) {
 
 	c.JSON(http.StatusOK, p)
 }
+
+//
+// ------------------------
+// UPDATE PROJECT
+// ------------------------
+//
 
 // Update godoc
 // @Summary Update project
@@ -127,6 +161,12 @@ func (h *Handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, p)
 }
 
+//
+// ------------------------
+// DELETE PROJECT
+// ------------------------
+//
+
 // Delete godoc
 // @Summary Delete project
 // @Tags Projects
@@ -144,4 +184,81 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+//
+// ------------------------
+// LIST QRs INSIDE PROJECT
+// ------------------------
+//
+
+// @Summary List all QRs inside a project
+// @Tags Projects
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} qr.QRCode
+// @Router /api/projects/{id}/qr [get]
+func (h *Handler) ListQRs(c *gin.Context) {
+	userID := c.GetString("user_id")
+	id := c.Param("id")
+
+	qrs, err := h.svc.ListProjectQRs(c.Request.Context(), userID, id)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "failed to load qrs"})
+		return
+	}
+
+	c.JSON(200, qrs)
+}
+
+//
+// ------------------------
+// MOVE QR INTO PROJECT
+// ------------------------
+//
+
+// @Summary Add a QR to a project
+// @Tags Projects
+// @Security BearerAuth
+// @Router /api/projects/{id}/add/{qrID} [put]
+func (h *Handler) AddQR(c *gin.Context) {
+	userID := c.GetString("user_id")
+	projectID := c.Param("id")
+	qrID := c.Param("qrID")
+
+	if err := h.svc.AssignQR(c.Request.Context(), userID, qrID, projectID); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"status": "ok"})
+}
+
+//
+// ------------------------
+// REMOVE QR FROM PROJECT
+// ------------------------
+//
+
+// @Summary Remove QR from project
+// @Tags Projects
+// @Security BearerAuth
+// @Router /api/projects/{id}/remove/{qrID} [put]
+func (h *Handler) RemoveQR(c *gin.Context) {
+	userID := c.GetString("user_id")
+	projectID := c.Param("id")
+	qrID := c.Param("qrID")
+
+	// optional: ensure project exists
+	if _, err := h.svc.GetProject(c.Request.Context(), userID, projectID); err != nil {
+		c.JSON(404, gin.H{"error": "project not found"})
+		return
+	}
+
+	if err := h.svc.AssignQR(c.Request.Context(), userID, qrID, ""); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"status": "ok"})
 }

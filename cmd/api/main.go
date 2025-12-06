@@ -36,9 +36,8 @@ func main() {
 	cfg := config.Load()
 
 	fmt.Println("FRONTEND_URL READ:", os.Getenv("FRONTEND_URL")) // Log the raw ENV var
-    fmt.Println("FRONTEND_URL USED:", cfg.FrontendURL) // Log the value passed to the service
+	fmt.Println("FRONTEND_URL USED:", cfg.FrontendURL)           // Log the value passed to the service
 
-	
 	// --------------------------
 	// DATABASE CONNECTIONS
 	// --------------------------
@@ -76,7 +75,7 @@ func main() {
 
 	// Projects
 	projectsRepo := projects.NewRepository(pgDB)
-	projectsSvc := projects.NewService(projectsRepo)
+	projectsSvc := projects.NewService(projectsRepo, qrRepo)
 
 	// Settings
 	settingsRepo := settings.NewRepository(pgDB)
