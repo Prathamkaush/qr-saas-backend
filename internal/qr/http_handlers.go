@@ -21,8 +21,10 @@ func RegisterRoutes(r *gin.RouterGroup, svc Service) {
 
 type CreateDynamicURLRequest struct {
 	Name      string      `json:"name"`
-	TargetURL string      `json:"target_url" binding:"required,url"`
-	Design    interface{} `json:"design"`
+	TargetURL string      `json:"target_url" binding:"required"` 
+    
+    QRType    string      `json:"qr_type" binding:"required"`
+    Design    interface{} `json:"design"`
 }
 
 // CreateDynamicURL godoc
