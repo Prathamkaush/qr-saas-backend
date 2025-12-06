@@ -19,7 +19,7 @@ type RenderOptions struct {
 	LogoPath        string // local file or fetched and cached
 }
 
-// Generate QR image bytes with optional logo in center
+// RenderQRWithLogo generates a QR image bytes with optional logo
 func RenderQRWithLogo(content string, opts RenderOptions) ([]byte, error) {
 	if opts.Size == 0 {
 		opts.Size = 512
@@ -32,7 +32,7 @@ func RenderQRWithLogo(content string, opts RenderOptions) ([]byte, error) {
 	}
 	qrImg.DisableBorder = true
 
-	// Apply Custom Colors
+	// Apply Custom Colors if provided
 	if opts.Color != "" {
 		qrImg.ForegroundColor = parseHexColor(opts.Color)
 	}
@@ -53,11 +53,11 @@ func RenderQRWithLogo(content string, opts RenderOptions) ([]byte, error) {
 			defer logoFile.Close()
 			logo, _, err := image.Decode(logoFile)
 			if err == nil {
-				// resize logo to e.g. 20% of QR size
+				// Resize logo to 20% of QR size
 				logoSize := opts.Size / 5
 				logo = imaging.Resize(logo, logoSize, logoSize, imaging.Lanczos)
 
-				// center position
+				// Center position
 				x := (base.Bounds().Dx() - logo.Bounds().Dx()) / 2
 				y := (base.Bounds().Dy() - logo.Bounds().Dy()) / 2
 
@@ -73,13 +73,13 @@ func RenderQRWithLogo(content string, opts RenderOptions) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Helper: Parse Hex string (#RRGGBB) to color.RGBA
+// Helper: Parse Hex string to color.RGBA
 func parseHexColor(s string) color.RGBA {
 	c := color.RGBA{A: 0xff}
 	var r, g, b uint8
 
-	// Handle #RRGGBB
 	if len(s) == 7 {
+		// Handle #RRGGBB
 		fmt.Sscanf(s, "#%02x%02x%02x", &r, &g, &b)
 		c.R = r
 		c.G = g
@@ -92,10 +92,9 @@ func parseHexColor(s string) color.RGBA {
 		c.G = g1 * 17
 		c.B = b1 * 17
 	}
-	// Default to black/transparent if invalid
+	
 	return c
-}
-```
+} ```
 
 ### 2. Update `internal/qr/service.go` (Uncommented)
 
