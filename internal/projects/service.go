@@ -127,7 +127,7 @@ func (s *service) ListProjectQRs(ctx context.Context, userID, projectID string) 
 // =====================================================================
 func (s *service) AssignQR(ctx context.Context, userID, qrID, projectID string) error {
 	// make sure QR belongs to the user
-	q, err := s.qrRepo.GetByID(ctx, userID, qrID)
+	q, err := s.qrRepo.GetByID(ctx, qrID, userID) // ✅ FIXED ORDER
 	if err != nil {
 		return err
 	}
@@ -135,9 +135,8 @@ func (s *service) AssignQR(ctx context.Context, userID, qrID, projectID string) 
 		return errors.New("qr not found")
 	}
 
-	// projectID "" removes QR from project
+	// If projectID is not empty, ensure project belongs to the user
 	if projectID != "" {
-		// ensure project belongs to user
 		p, err := s.repo.GetByID(ctx, userID, projectID)
 		if err != nil {
 			return err
