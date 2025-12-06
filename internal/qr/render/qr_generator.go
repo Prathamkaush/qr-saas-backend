@@ -8,8 +8,8 @@ import (
 	"image/png"
 	"os"
 
-	"[github.com/disintegration/imaging](https://github.com/disintegration/imaging)"
-	"[github.com/skip2/go-qrcode](https://github.com/skip2/go-qrcode)"
+	"github.com/disintegration/imaging"
+	"github.com/skip2/go-qrcode"
 )
 
 type RenderOptions struct {
