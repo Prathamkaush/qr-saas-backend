@@ -8,6 +8,7 @@ type Project struct {
 	Name      string    `json:"name"`
 	Color     string    `json:"color"`
 	CreatedAt time.Time `json:"created_at"`
+	Count     int       `json:"count"`
 }
 
 type CreateProjectRequest struct {
